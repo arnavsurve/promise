@@ -1,6 +1,7 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -9,10 +10,14 @@ import (
 	"github.com/arnavsurve/promise/pkg/handlers"
 	"github.com/arnavsurve/promise/pkg/workers"
 	"github.com/joho/godotenv"
-	// "gorm.io/gorm/logger"
 )
 
 func main() {
+	numWorkers := flag.Int("w", 0, "Size of worker pool to initialize")
+	retryCount := flag.Int("retry", 3, "Retry limit for jobs on failure")
+
+	flag.Parse()
+
 	if err := godotenv.Load(); err != nil {
 		log.Printf("error %s", err)
 	}
@@ -22,9 +27,8 @@ func main() {
 		log.Fatal(err)
 	}
 	store.InitJobsTable()
-	// store.DB.Logger = logger.Default.LogMode(logger.Info)
 
-	go workers.ProcessJobs(store)
+	go workers.InitWorkerPool(store, *numWorkers, *retryCount)
 
 	http.HandleFunc("/job", requestHandler(map[string]http.HandlerFunc{
 		http.MethodPost: handlers.EnqueueJob(store),
@@ -32,7 +36,7 @@ func main() {
 
 	http.HandleFunc("/job/status", handlers.GetJobStatus(store))
 
-	fmt.Println("Server running on :8080")
+	fmt.Print("Server running on :8080\n\n")
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
