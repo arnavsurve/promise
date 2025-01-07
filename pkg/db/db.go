@@ -7,13 +7,15 @@ import (
 	"strconv"
 
 	"github.com/arnavsurve/promise/pkg/models"
+	"github.com/redis/go-redis/v9"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
 
 type Store struct {
-	DB *gorm.DB
+	DB  *gorm.DB
+	Rdb *redis.Client
 }
 
 func NewStore() (*Store, error) {
@@ -34,8 +36,13 @@ func NewStore() (*Store, error) {
 
 	fmt.Println("DB connection successful")
 
+	rdb := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+
 	return &Store{
-		DB: db,
+		DB:  db,
+		Rdb: rdb,
 	}, nil
 }
 

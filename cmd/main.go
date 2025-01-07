@@ -9,6 +9,7 @@ import (
 	"github.com/arnavsurve/promise/pkg/handlers"
 	"github.com/arnavsurve/promise/pkg/workers"
 	"github.com/joho/godotenv"
+	// "gorm.io/gorm/logger"
 )
 
 func main() {
@@ -35,7 +36,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
-// requestHandler handles incoming requests and calls the handler associated with a particular HTTP request
+// requestHandler handles incoming requests and calls the handler associated with a particular HTTP request method
 func requestHandler(handlers map[string]http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if handler, exists := handlers[r.Method]; exists {

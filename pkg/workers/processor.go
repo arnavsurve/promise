@@ -1,49 +1,53 @@
 package workers
 
 import (
+	"context"
 	"log"
 	"os/exec"
-	"time"
 
 	"github.com/arnavsurve/promise/pkg/db"
 	"github.com/arnavsurve/promise/pkg/models"
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	// "gorm.io/gorm"
+	// "gorm.io/gorm/clause"
 )
 
-func ProcessJobs(s *db.Store) {
+func ProcessJobs(store *db.Store) {
+	ctx := context.Background()
+
 	for {
 		var job models.Job
 
 		// Fetch next queued job
-		err := s.DB.Transaction(func(tx *gorm.DB) error {
-			// Fetch the first job, avoiding blocking on already locked jobs
-			err := tx.Where("status = ?", "Queued").
-				Order("created_at").
-				Clauses(clause.Locking{Strength: "UPDATE SKIP LOCKED"}).
-				First(&job).Error
-			if err != nil {
-				if err == gorm.ErrRecordNotFound {
-					log.Println("No jobs found. Sleeping... 😴")
-					time.Sleep(5 * time.Second)
-					return nil
-				}
-				return err
-			}
+		result, err := store.Rdb.BLPop(ctx, 0, "job_queue").Result()
+		if err != nil {
+			log.Printf("Failed to fetch job: %s\n", err)
+			continue
+		}
 
-			// Ensure a valid job was fetched
-			// if job.ID == 0 {
-			// 	log.Println("No valid jobs fetched. Skipping...")
-			// 	return nil
-			// }
-
-			// Mark job as running
-			if err := tx.Model(&models.Job{}).Where("id = ?", job.ID).Update("status", "Running").Error; err != nil {
+		// Mark job as running
+		err = store.DB.Transaction(func(tx *gorm.DB) error {
+			if err = tx.Model(&models.Job{}).Where("id = ?", job.ID).Update("status", "Running").Error; err != nil {
 				return err
 			}
 
 			return nil
 		})
+		if err != nil {
+			log.Printf("Error during job transaction: %s\n", err)
+			continue
+		}
+
+		command := result[1]
+		log.Printf("Processing job: %s\n", command)
+
+		err = executeCommand(command)
+		if err != nil {
+			log.Printf("Failed to process job: %s\n", err)
+		} else {
+			log.Println("Job processed successfully")
+		}
+
 		if err != nil {
 			log.Printf("Error during job transaction: %s\n", err)
 			continue
@@ -64,7 +68,7 @@ func ProcessJobs(s *db.Store) {
 			status = "Failed"
 		}
 
-		if err := s.DB.Model(&job).Update("status", status).Error; err != nil {
+		if err := store.DB.Model(&job).Update("status", status).Error; err != nil {
 			log.Printf("Failed to update status for job %d: %s\n", job.ID, err)
 		}
 	}
@@ -77,6 +81,6 @@ func executeCommand(command string) error {
 	if err != nil {
 		log.Printf("Command execution error: %s\n", err)
 	}
-	log.Printf("Command output: %s\n", string(output))
+	log.Printf("Command output: \n%s\n", string(output))
 	return err
 }
