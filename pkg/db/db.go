@@ -18,6 +18,7 @@ type Store struct {
 	Rdb *redis.Client
 }
 
+// NewStore returns a struct with a gorm Postgres client and redis client
 func NewStore() (*Store, error) {
 	host := os.Getenv("DB_HOST")
 	port, _ := strconv.Atoi(os.Getenv("DB_PORT"))
