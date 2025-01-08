@@ -3,12 +3,13 @@ package handlers
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/arnavsurve/promise/pkg/db"
 	"github.com/arnavsurve/promise/pkg/models"
+	"gorm.io/gorm"
 )
 
 var ctx = context.Background()
@@ -59,10 +60,41 @@ func PublishJob(s *db.Store, command string) error {
 	return nil
 }
 
+// GetJobStatus returns a job's status and execution time in UTC by default. Timezone can be defined via URL parameter
 func GetJobStatus(s *db.Store) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		queryParams := r.URL.Query()
 		id := queryParams.Get("id")
-		fmt.Printf("%s", id)
+		timezone := queryParams.Get("timezone")
+
+		var job models.Job
+
+		if err := s.DB.Where("id = ?", id).First(&job).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				http.Error(w, "Job not found", http.StatusNotFound)
+			} else {
+				log.Printf("Failed to fetch job from database: %s\n", err)
+				http.Error(w, "Failed to fetch job from database", http.StatusInternalServerError)
+			}
+		}
+
+		// Convert ExecutionTime to requester's local time if timezone is provided
+		executedAt := job.ExecutionTime
+		if timezone != "" {
+			loc, err := time.LoadLocation(timezone)
+			if err != nil {
+				http.Error(w, "Invalid timezone", http.StatusBadRequest)
+			}
+
+			executedAt = executedAt.In(loc)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"id":          job.ID,
+			"command":     job.Command,
+			"status":      job.Status,
+			"executed_at": executedAt,
+		})
 	}
 }
