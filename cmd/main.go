@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"net/http"
@@ -13,10 +12,10 @@ import (
 )
 
 func main() {
-	numWorkers := flag.Int("w", 0, "Size of worker pool to initialize")
-	retryCount := flag.Int("retry", 3, "Retry limit for jobs on failure")
+	// numWorkers := flag.Int("w", 0, "Size of worker pool to initialize")
+	// retryCount := flag.Int("retry", 3, "Retry limit for jobs on failure")
 
-	flag.Parse()
+	// flag.Parse()
 
 	if err := godotenv.Load(); err != nil {
 		log.Printf("error %s", err)
@@ -28,13 +27,17 @@ func main() {
 	}
 	store.InitJobsTable()
 
-	go workers.InitWorkerPool(store, *numWorkers, *retryCount)
+	// go workers.InitWorkerPool(store, *numWorkers, *retryCount)
+
+	go workers.WorkerManager(store)
 
 	http.HandleFunc("/job", requestHandler(map[string]http.HandlerFunc{
 		http.MethodPost: handlers.EnqueueJob(store),
 	}))
 
 	http.HandleFunc("/job/status", handlers.GetJobStatus(store))
+
+	http.HandleFunc("/job/decompose", handlers.EnqueueJobWithDecomposition(store))
 
 	fmt.Print("Server running on :8080\n\n")
 	log.Fatal(http.ListenAndServe(":8080", nil))
