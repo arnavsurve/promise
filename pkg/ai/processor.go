@@ -13,11 +13,6 @@ import (
 	"github.com/arnavsurve/promise/pkg/models"
 )
 
-var (
-	apiKey = os.Getenv("GROQ_API_KEY")
-	url    = "https://api.groq.com/openai/v1/chat/completions"
-)
-
 func ProcessTask(task models.Task, depsContext map[string]string) (string, error) {
 	switch task.Type {
 	case "command_execution":
@@ -39,6 +34,9 @@ func executeCommand(command string, args []string) (string, error) {
 }
 
 func processCommand(task models.Task, depsContext map[string]string) (string, error) {
+	apiKey := os.Getenv("GROQ_API_KEY")
+	url := "https://api.groq.com/openai/v1/chat/completions"
+
 	// Construct dependency context from handoff
 	depsInfo := ""
 	for i, context := range depsContext {
@@ -67,7 +65,7 @@ Example:
 }`, depsInfo, task.Description)
 
 	requestData := RequestPayload{
-		Model: "deepseek-r1-distill-llama-70b",
+		Model: "llama-3.3-70b-versatile",
 		Messages: []Message{
 			{
 				Role:    "user",
@@ -133,6 +131,9 @@ Example:
 }
 
 func processCodeGeneration(task models.Task, depsContext map[string]string) (string, error) {
+	apiKey := os.Getenv("GROQ_API_KEY")
+	url := "https://api.groq.com/openai/v1/chat/completions"
+
 	// Construct dependency context from handoff
 	depsInfo := ""
 	for i, context := range depsContext {
@@ -168,7 +169,7 @@ Example:
 }`, depsInfo, dirPath, task.Description)
 
 	requestData := RequestPayload{
-		Model: "deepseek-r1-distill-llama-70b",
+		Model: "llama-3.3-70b-versatile",
 		Messages: []Message{
 			{
 				Role:    "user",
@@ -209,6 +210,12 @@ Example:
 	}
 
 	if len(groqResponse.Choices) == 0 {
+		var groqError GroqErrorResponse
+		err = json.Unmarshal(body, &groqError)
+		if err != nil {
+			return "", err
+		}
+		fmt.Println(groqError)
 		return "", fmt.Errorf("LLM response was unsuccessful")
 	}
 

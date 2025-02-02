@@ -31,6 +31,14 @@ type GroqResponse struct {
 	Choices []Choice `json:"choices"`
 }
 
+type GroqErrorResponse struct {
+	Error struct {
+		Message string `json:"message"`
+		Type    string `json:"type"`
+		Code    string `json:"code"`
+	} `json:"error"`
+}
+
 // TaskResponse represents the AI-generated task breakdown
 type TaskResponse struct {
 	Subtasks []models.Task `json:"subtasks"`
