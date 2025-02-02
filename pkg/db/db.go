@@ -48,7 +48,7 @@ func NewStore() (*Store, error) {
 }
 
 func (s *Store) InitJobsTable() {
-	err := s.DB.AutoMigrate(&models.Job{})
+	err := s.DB.AutoMigrate(&models.Job{}, &models.Task{})
 	if err != nil {
 		log.Fatalf("Error creating accounts table: %v", err)
 	}
